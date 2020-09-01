@@ -8,82 +8,58 @@ type ChangeSet struct {
 	changeType string // "new", "update", "delete"
 }
 
-// CompareLines compare lines of two files
-func Compare(currentFilePath, newFilePath string) (isTheSame bool, differentLines []ChangeSet) {
-	cfLines, cfChecksum := readLines(currentFilePath)
-	nfLines, nfChecksum := readLines(newFilePath)
-	isTheSame = true
+// FilesInfo ...
+type FilesInfo struct {
+	oldFilePath string
+	newFilePath string
 
-	// there is some difference between those two files
-	if cfChecksum != nfChecksum {
-		var removedLines, newLines, updatedLines []ChangeSet
+	oldFileLineChecksums []string
+	newFileLineChecksums []string
 
-		sizeOfCfLines := len(cfLines)
-		sizeOfNfLines := len(nfLines)
+	oldFileLines map[string]string
+	newFileLines map[string]string
 
-		if sizeOfCfLines > sizeOfNfLines {
-			// removed lines
-			for i, val := range cfLines[sizeOfNfLines:] {
-				removedLines = append(removedLines, ChangeSet{
-					line:       sizeOfNfLines + 1 + i,
-					changeType: "delete",
-					oldLine:    val,
-					newLine:    "",
-				})
-			}
-		} else {
-			// new lines
-			for i, val := range nfLines[sizeOfCfLines:] {
-				newLines = append(newLines, ChangeSet{
-					line:       sizeOfCfLines + 1 + i,
-					changeType: "new",
-					oldLine:    "",
-					newLine:    val,
-				})
-			}
-		}
+	oldFileChecksum string
+	newFileChecksum string
+}
 
-		// changesets
-		for index, line := range cfLines {
-			if index == len(nfLines) {
-				break
-			}
+// Instantiate create diff instance with two files to compares
+// 'of' stand for old file and 'nf' for new file
+func Instantiate(oldFilePath, newFilePath string) *FilesInfo {
+	ofLines, ofLinesChecksums, ofChecksum := readLines(oldFilePath)
+	nfLines, nfLinesChecksums, nfChecksum := readLines(newFilePath)
 
-			if nLine := nfLines[index]; line != nLine {
-				updatedLines = append(updatedLines, ChangeSet{
-					line:       index + 1,
-					changeType: "update",
-					oldLine:    line,
-					newLine:    nLine,
-				})
-			}
-		}
+	return &FilesInfo{
+		oldFilePath: oldFilePath,
+		newFilePath: newFilePath,
 
-		differentLines = append(differentLines, append(updatedLines, newLines...)...)
-		isTheSame = false
+		oldFileChecksum: ofChecksum,
+		newFileChecksum: nfChecksum,
+
+		oldFileLineChecksums: ofLinesChecksums,
+		newFileLineChecksums: nfLinesChecksums,
+
+		oldFileLines: ofLines,
+		newFileLines: nfLines,
 	}
-
-	return
 }
 
 // CompareLines ...
-func CompareLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet) {
-	oldFileLines, ofChecksum := readLines(oldFile)
-	newFileLines, nfChecksum := readLines(newFile)
+func (df FilesInfo) CompareLines() (isSame bool, changeSets []ChangeSet) {
 	isSame = false
 
-	if ofChecksum == nfChecksum {
+	if df.oldFileChecksum == df.newFileChecksum {
 		isSame = true
 		return
 	}
 
-	oldFileLines, newFileLines = harmonizeSlicesSize(oldFileLines, newFileLines)
-	for index, ofLine := range oldFileLines {
-		if nfLine := newFileLines[index]; ofLine != nfLine {
+	oldFileLineChecksums, newFileLineChecksums := harmonizeSlicesSize(df.oldFileLineChecksums, df.newFileLineChecksums)
+	for index, ofLine := range oldFileLineChecksums {
+		if nfLine := newFileLineChecksums[index]; ofLine != nfLine {
 			changeSets = append(changeSets, ChangeSet{
 				line:       index + 1,
-				oldLine:    ofLine,
-				newLine:    nfLine,
+				oldLine:    df.oldFileLines[ofLine],
+				newLine:    df.newFileLines[nfLine],
 				changeType: "update",
 			})
 		}
@@ -93,19 +69,17 @@ func CompareLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet)
 }
 
 // FindNewLines lines in new file not in old file
-func FindNewLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet) {
-	oldFileLines, ofChecksum := readLines(oldFile)
-	newFileLines, nfChecksum := readLines(newFile)
+func (df FilesInfo) FindNewLines() (isSame bool, changeSets []ChangeSet) {
 	isSame = false
 
-	if ofChecksum == nfChecksum {
+	if df.oldFileChecksum == df.newFileChecksum {
 		isSame = true
 		return
 	}
 
-	for index, nfLine := range newFileLines {
+	for index, nfLine := range df.newFileLineChecksums {
 		added := true
-		for _, ofLine := range oldFileLines {
+		for _, ofLine := range df.oldFileLineChecksums {
 			if nfLine == ofLine {
 				added = false
 				break
@@ -116,7 +90,7 @@ func FindNewLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet)
 			changeSets = append(changeSets, ChangeSet{
 				line:       index + 1,
 				changeType: "new",
-				newLine:    nfLine,
+				newLine:    df.newFileLines[nfLine],
 			})
 		}
 	}
@@ -124,19 +98,17 @@ func FindNewLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet)
 }
 
 // FindRemovedLines find lines in old file not in new lines
-func FindRemovedLines(oldFile, newFile string) (isSame bool, changeSets []ChangeSet) {
-	oldFileLines, ofChecksum := readLines(oldFile)
-	newFileLines, nfChecksum := readLines(newFile)
+func (df FilesInfo) FindRemovedLines() (isSame bool, changeSets []ChangeSet) {
 	isSame = false
 
-	if ofChecksum == nfChecksum {
+	if df.oldFileChecksum == df.newFileChecksum {
 		isSame = true
 		return
 	}
 
-	for index, ofLine := range oldFileLines {
+	for index, ofLine := range df.oldFileLineChecksums {
 		removed := true
-		for _, nfLine := range newFileLines {
+		for _, nfLine := range df.newFileLineChecksums {
 			if nfLine == ofLine {
 				removed = false
 				break
@@ -147,7 +119,7 @@ func FindRemovedLines(oldFile, newFile string) (isSame bool, changeSets []Change
 			changeSets = append(changeSets, ChangeSet{
 				line:       index + 1,
 				changeType: "delete",
-				newLine:    ofLine,
+				newLine:    df.oldFileLines[ofLine],
 			})
 		}
 	}

@@ -5,37 +5,38 @@ import (
 	"testing"
 )
 
-func TestCompare(t *testing.T) {
+func TestCompareLines(t *testing.T) {
 	testsEntries := []struct {
 		CurrentFilePath string
 		NewFilePath     string
 		isSameFile      bool
 	}{
 		{
-			CurrentFilePath: "../assets/old.txt",
-			NewFilePath:     "../assets/new.txt",
+			CurrentFilePath: "assets/old.txt",
+			NewFilePath:     "assets/new.txt",
 			isSameFile:      false,
 		},
 		{
-			CurrentFilePath: "../assets/old.txt",
-			NewFilePath:     "../assets/old.txt",
+			CurrentFilePath: "assets/old.txt",
+			NewFilePath:     "assets/old.txt",
 			isSameFile:      true,
 		},
 		{
-			CurrentFilePath: "../assets/gopher.png",
-			NewFilePath:     "../assets/mario.png",
+			CurrentFilePath: "assets/gopher.png",
+			NewFilePath:     "assets/mario.png",
 			isSameFile:      false,
 		},
 		{
-			CurrentFilePath: "../assets/mario.png",
-			NewFilePath:     "../assets/mario.png",
+			CurrentFilePath: "assets/mario.png",
+			NewFilePath:     "assets/mario.png",
 			isSameFile:      true,
 		},
 	}
 
 	for i, entry := range testsEntries {
 		t.Run(fmt.Sprintf("%s%d", "test", i), func(st *testing.T) {
-			isSame, _ := CompareLines(entry.CurrentFilePath, entry.NewFilePath)
+			diffClient := Instantiate(entry.CurrentFilePath, entry.NewFilePath)
+			isSame, _ := diffClient.CompareLines()
 			if isSame != entry.isSameFile {
 				t.Errorf("The expected value is %t but we have %t", entry.isSameFile, isSame)
 			}
@@ -44,7 +45,8 @@ func TestCompare(t *testing.T) {
 }
 
 func TestFindRemovedLines(t *testing.T) {
-	isSame, removedLines := FindRemovedLines("../assets/old.txt", "../assets/new.txt")
+	diffClient := Instantiate("assets/old.txt", "assets/new.txt")
+	isSame, removedLines := diffClient.FindRemovedLines()
 	if isSame != false {
 		t.Errorf("Expected isSame to be false but it's true")
 	}
@@ -55,7 +57,8 @@ func TestFindRemovedLines(t *testing.T) {
 }
 
 func TestFindNewLines(t *testing.T) {
-	isSame, newLines := FindNewLines("../assets/old.txt", "../assets/new.txt")
+	diffClient := Instantiate("assets/old.txt", "assets/new.txt")
+	isSame, newLines := diffClient.FindNewLines()
 	if isSame != false {
 		t.Errorf("Expected isSame to be false but it's true")
 	}

@@ -25,7 +25,9 @@ func harmonizeSlicesSize(sliceA, sliceB []string) ([]string, []string) {
 	return sliceA, sliceB
 }
 
-func readLines(path string) (lines []string, fileChecksum string) {
+func readLines(path string) (lines map[string]string, lineChecksums []string, fileChecksum string) {
+	lines = make(map[string]string)
+
 	fileData, err := ioutil.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
@@ -34,7 +36,9 @@ func readLines(path string) (lines []string, fileChecksum string) {
 
 	scanner := bufio.NewScanner(bytes.NewReader(fileData))
 	for scanner.Scan() {
-		lines = append(lines, generateStringChecksum(scanner.Text()))
+		checksum := generateStringChecksum(scanner.Text())
+		lines[checksum] = scanner.Text()
+		lineChecksums = append(lineChecksums, checksum)
 	}
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "reading input:", err)
